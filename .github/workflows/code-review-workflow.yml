@@ -10,34 +10,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0 # Fetch all history for diffing
-
-      - name: Get the pull request diff
-        id: get_diff
-        run: |
-          # Get the full diff using a more reliable command
-          DIFF=$(git diff --unified=0 ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }})
-          # Escape newlines and quotes for JSON payload
-          ESCAPED_DIFF=$(echo "$DIFF" | sed 's/\n/\\n/g' | sed 's/"/\\"/g')
-          # Pass the escaped diff as an environment variable
-          echo "ESCAPED_DIFF=$ESCAPED_DIFF" >> $GITHUB_ENV
-
-      - name: Send diff to Code Review API
+      - name: Send PR details to Code Review API
         id: send_review
         env:
-          # Use your NodePort service's URL
           API_URL: http://44.201.184.34:30798/review
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          ESCAPED_DIFF: ${{ env.ESCAPED_DIFF }}
-          
         run: |
-          # Use curl to send a POST request to your deployed service
-          # The service will handle the Bedrock API call and post the comment
-          JSON_PAYLOAD="{\"repository\":\"${{ env.REPO }}\",\"pull_request_number\":${{ env.PR_NUMBER }},\"diff\":\"${{ env.ESCAPED_DIFF }}\"}"
+          JSON_PAYLOAD="{\"repository\":\"$REPO\",\"pull_request_number\":$PR_NUMBER,\"diff\":\"\"}"
           curl -X POST "$API_URL" \
           -H "Content-Type: application/json" \
           -d "$JSON_PAYLOAD"
