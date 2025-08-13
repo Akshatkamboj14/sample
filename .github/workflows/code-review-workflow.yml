@@ -18,14 +18,11 @@ jobs:
       - name: Get the pull request diff
         id: get_diff
         run: |
-          # The base commit for the pull request
-          BASE_COMMIT=$(git rev-parse HEAD~1)
-          # The diff between the current branch and the base commit
-          DIFF=$(git diff $BASE_COMMIT HEAD)
-          # Output the diff to be used in a later step
-          echo "DIFF<<EOF" >> $GITHUB_ENV
-          echo "$DIFF" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+          # Get the full diff
+          DIFF=$(git diff --unified=0 ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }})
+          # Escape newlines and quotes for JSON payload
+          ESCAPED_DIFF=$(echo "$DIFF" | sed ':a;N;$!ba;s/\n/\\n/g' | sed 's/"/\\"/g')
+          echo "ESCAPED_DIFF=$ESCAPED_DIFF" >> $GITHUB_ENV
 
       - name: Send diff to Code Review API
         id: send_review
@@ -34,12 +31,13 @@ jobs:
           API_URL: http://44.201.184.34:30798/review
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          DIFF: ${{ env.DIFF }}
+          ESCAPED_DIFF: ${{ env.ESCAPED_DIFF }}
+          
         run: |
           # Use curl to send a POST request to your deployed service
           # The service will handle the Bedrock API call and post the comment
           curl -X POST "$API_URL" \
           -H "Content-Type: application/json" \
-          -d "{ \"repository\": \"$REPO\", \"pull_request_number\": $PR_NUMBER, \"diff\": \"$DIFF\" }"
+          -d "{ \"repository\": \"$REPO\", \"pull_request_number\": $PR_NUMBER, \"diff\": \"$ESCAPED_DIFF\" }"
 
 
